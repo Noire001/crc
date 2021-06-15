@@ -7,14 +7,14 @@ namespace CRC
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Enter k:");
+            Console.Write("Enter k: ");
             uint k = Convert.ToUInt32(Console.ReadLine());
-            Console.WriteLine("Enter P:");
+            Console.Write("Enter P: ");
             uint pDigits = Convert.ToUInt32(Console.ReadLine());
             uint[] P = DigitsToArray(pDigits);
-            Console.WriteLine("Enter BER:");
+            Console.Write("Enter BER: ");
             double BER = Convert.ToDouble(Console.ReadLine());
-            Console.WriteLine("Enter number of messages to transmit:");
+            Console.Write("Enter number of messages to transmit: ");
             ulong numOfMessages = Convert.ToUInt64(Console.ReadLine());
 
             long milliseconds = DateTimeOffset.Now.ToUnixTimeMilliseconds();
@@ -25,7 +25,8 @@ namespace CRC
             Console.WriteLine(
                 noisyMessages + " messages had errors. (" + (noisyMessages * 100.0) / numOfMessages + "%)");
             Console.WriteLine("CRC successfully detected " + detectedNoisyMessages + " of these. (" +
-                              (detectedNoisyMessages * 100.0) / numOfMessages + "%)");
+                              (detectedNoisyMessages * 100.0) / numOfMessages + "% of messages) (" +
+                              (detectedNoisyMessages * 100.0) / noisyMessages + "% of errors)");
             Console.WriteLine("And failed to detect " + (noisyMessages - detectedNoisyMessages) + " (" + (
                 (noisyMessages - detectedNoisyMessages) * 100.0) / numOfMessages + "%)");
             Console.WriteLine("Validated in " + benchmark + "ms.");
