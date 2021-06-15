@@ -10,76 +10,115 @@ namespace CRC
             Console.WriteLine("Enter k:");
             uint k = Convert.ToUInt32(Console.ReadLine());
             Console.WriteLine("Enter P:");
-            uint pNum = Convert.ToUInt32(Console.ReadLine());
-            uint[] P = DigitsToArray(pNum);
+            uint pDigits = Convert.ToUInt32(Console.ReadLine());
+            uint[] P = DigitsToArray(pDigits);
             Console.WriteLine("Enter BER:");
             double BER = Convert.ToDouble(Console.ReadLine());
+            Console.WriteLine("Enter number of messages to transmit:");
+            ulong numOfMessages = Convert.ToUInt64(Console.ReadLine());
+            long milliseconds = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            Run(numOfMessages, P, BER, k, out var noisyMessages, out var detectedNoisyMessages);
+            long benchmark = DateTimeOffset.Now.ToUnixTimeMilliseconds() - milliseconds;
+            Console.WriteLine("Transmitted " + numOfMessages + " messages.");
+            Console.WriteLine(
+                noisyMessages + " messages had errors. (" + (noisyMessages * 100.0) / numOfMessages + "%)");
+            Console.WriteLine("CRC successfully detected " + detectedNoisyMessages + " of these. (" +
+                              (detectedNoisyMessages * 100.0) / noisyMessages + "%)");
+            Console.WriteLine("And failed to detect " + (noisyMessages - detectedNoisyMessages) + " (" + (
+                (noisyMessages - detectedNoisyMessages) * 100.0) / numOfMessages + "%)");
+            Console.WriteLine("Validated in " + benchmark + "ms.");
+        }
 
-            uint[] block = RandomMessage(k, P.Length - 1);
-            uint[] test = {1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0};
-            GetFCS(test, P);
+        static void Run(ulong numOfMessages, uint[] P, double BER, uint k, out ulong noisyMessages, out ulong detectedNoisyMessages)
+        {
+            noisyMessages = 0;
+            detectedNoisyMessages = 0;
+            for (ulong i = 0; i < numOfMessages; i++)
+            {
+                uint[] block = RandomPaddedMessage(k, P.Length - 1);
+                uint[] fcs = GetFcs(block, P);
+
+                for (var j = fcs.Length - 1; j >= 0; j--)
+                {
+                    block[block.Length - fcs.Length + j] = fcs[j];
+                }
+
+                uint[] noisyBlock = MessageWithNoise(block, BER, out var isNoisy);
+
+                bool isDetected = false;
+                foreach (var t in noisyBlock)
+                    if (t == 1)
+                        isDetected = true;
+
+                if (isNoisy) noisyMessages++;
+                if (isNoisy && isDetected) detectedNoisyMessages++;
+            }
         }
 
         static uint[] DigitsToArray(uint digits)
         {
-            if (digits == 0) return new uint[] {0};
             var dList = new List<uint>();
             for (; digits != 0; digits /= 10)
-                dList.Add(digits % 10);
+                dList.Add(Convert.ToUInt32(digits % 10));
             var arr = dList.ToArray();
             Array.Reverse(arr);
             return arr;
         }
 
-        static uint[] RandomMessage(uint k, int padding)
+        static uint[] RandomPaddedMessage(uint k, int padding)
         {
-            var block = new uint[k + padding];
+            var message = new uint[k + padding];
             var random = new Random();
-            for (int i = 0; i < block.Length - padding; i++)
+            for (var i = 0; i < message.Length - padding; i++)
             {
-                block[i] = Convert.ToUInt32(random.Next(0, 2));
-            }
-
-            return block;
-        }
-
-        static uint[] MessageWithNoise(uint[] message, double BER, out bool isNoisy)
-        {
-            isNoisy = false;
-            var random = new Random();
-            for (int i = 0; i < message.Length; i++)
-            {
-                if (random.NextDouble() < BER)
-                {
-                    isNoisy = true;
-                    if (message[i] == 1)
-                        message[i] = 0;
-                    else
-                        message[i] = 1;
-                }
+                message[i] = Convert.ToUInt32(random.Next(0, 2));
             }
 
             return message;
         }
 
-        static uint[] GetFCS(uint[] message, uint[] P)
+        static uint[] MessageWithNoise(uint[] message, double BER, out bool isNoisy)
         {
-            uint[] result = new uint[P.Length - 1];
-            int index = Array.IndexOf(message, Convert.ToUInt32(1)); //start from non-zero 'bit'
-            for (int i = index; i < message.Length - P.Length - 1; i++) //avoid padded area
+            var temp = new uint[message.Length];
+            Array.Copy(message, temp, temp.Length);
+            isNoisy = false;
+            var random = new Random();
+            for (var i = 0; i < temp.Length; i++)
             {
-                index = Array.IndexOf(message, Convert.ToUInt32(1));
-                if (index + P.Length < message.Length) //ensure not out of bounds
-                    for (int j = 0; j < P.Length; j++)
+                if (random.NextDouble() < BER)
+                {
+                    isNoisy = true;
+                    if (temp[i] == 1)
+                        temp[i] = 0;
+                    else
+                        temp[i] = 1;
+                }
+            }
+
+            return temp;
+        }
+        
+        static uint[] GetFcs(uint[] message, uint[] P)
+        {
+            var temp = new uint[message.Length];
+            Array.Copy(message, temp, temp.Length);
+            var result = new uint[P.Length - 1];
+            var index = Array.IndexOf(temp, Convert.ToUInt32(1)); //start from non-zero 'bit'
+            for (var i = index; i < temp.Length - P.Length - 1; i++) //avoid padded area
+            {
+                index = Array.IndexOf(temp, Convert.ToUInt32(1));
+                if (index != -1 && index + P.Length < temp.Length) //ensure not out of bounds
+                    for (var j = 0; j < P.Length; j++)
                     {
-                        message[index + j] ^= P[j];
+                        temp[index + j] ^= P[j];
                     }
             }
 
-            for (int i = result.Length - 1; i >= 0; i--)
+            for (var i = result.Length - 1; i >= 0; i--)
             {
-                result[i] = message[message.Length - result.Length + i];
+                result[i] = temp[temp.Length - result.Length + i];
             }
+
             return result;
         }
     }
