@@ -16,42 +16,46 @@ namespace CRC
             double BER = Convert.ToDouble(Console.ReadLine());
             Console.WriteLine("Enter number of messages to transmit:");
             ulong numOfMessages = Convert.ToUInt64(Console.ReadLine());
+
             long milliseconds = DateTimeOffset.Now.ToUnixTimeMilliseconds();
             Run(numOfMessages, P, BER, k, out var noisyMessages, out var detectedNoisyMessages);
             long benchmark = DateTimeOffset.Now.ToUnixTimeMilliseconds() - milliseconds;
+
             Console.WriteLine("Transmitted " + numOfMessages + " messages.");
             Console.WriteLine(
                 noisyMessages + " messages had errors. (" + (noisyMessages * 100.0) / numOfMessages + "%)");
             Console.WriteLine("CRC successfully detected " + detectedNoisyMessages + " of these. (" +
-                              (detectedNoisyMessages * 100.0) / noisyMessages + "%)");
+                              (detectedNoisyMessages * 100.0) / numOfMessages + "%)");
             Console.WriteLine("And failed to detect " + (noisyMessages - detectedNoisyMessages) + " (" + (
                 (noisyMessages - detectedNoisyMessages) * 100.0) / numOfMessages + "%)");
             Console.WriteLine("Validated in " + benchmark + "ms.");
         }
 
-        static void Run(ulong numOfMessages, uint[] P, double BER, uint k, out ulong noisyMessages, out ulong detectedNoisyMessages)
+        static void Run(ulong numOfMessages, uint[] P, double BER, uint k, out ulong noisyMessages,
+            out ulong detectedNoisyMessages)
         {
             noisyMessages = 0;
             detectedNoisyMessages = 0;
             for (ulong i = 0; i < numOfMessages; i++)
             {
-                uint[] block = RandomPaddedMessage(k, P.Length - 1);
-                uint[] fcs = GetFcs(block, P);
-
+                var block = RandomPaddedMessage(k, P.Length - 1);
+                var fcs = GetFcs(block, P);
                 for (var j = fcs.Length - 1; j >= 0; j--)
                 {
                     block[block.Length - fcs.Length + j] = fcs[j];
                 }
 
-                uint[] noisyBlock = MessageWithNoise(block, BER, out var isNoisy);
-
-                bool isDetected = false;
-                foreach (var t in noisyBlock)
+                var noisyBlock = MessageWithNoise(block, BER, out var isNoisy);
+                var noisyRemainder = GetFcs(noisyBlock, P);
+                var isDetected = false;
+                foreach (var t in noisyRemainder)
                     if (t == 1)
+                    {
                         isDetected = true;
+                    }
 
                 if (isNoisy) noisyMessages++;
-                if (isNoisy && isDetected) detectedNoisyMessages++;
+                if (isDetected) detectedNoisyMessages++;
             }
         }
 
@@ -97,7 +101,7 @@ namespace CRC
 
             return temp;
         }
-        
+
         static uint[] GetFcs(uint[] message, uint[] P)
         {
             var temp = new uint[message.Length];
