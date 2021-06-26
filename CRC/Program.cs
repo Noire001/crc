@@ -5,33 +5,45 @@ namespace CRC
 {
     class Program
     {
-        static void Main(string[] args)
+        /// <summary>
+        /// Handles console input & output.
+        /// </summary>
+        private static void Main()
         {
             Console.Write("Enter k: ");
-            uint k = Convert.ToUInt32(Console.ReadLine());
+            var k = Convert.ToUInt32(Console.ReadLine());
             Console.Write("Enter P: ");
-            uint pDigits = Convert.ToUInt32(Console.ReadLine());
-            uint[] P = DigitsToArray(pDigits);
+            var pDigits = Convert.ToUInt32(Console.ReadLine());
+            var P = DigitsToArray(pDigits);
             Console.Write("Enter BER: ");
-            double BER = Convert.ToDouble(Console.ReadLine());
+            var BER = Convert.ToDouble(Console.ReadLine());
             Console.Write("Enter number of messages to transmit: ");
-            ulong numOfMessages = Convert.ToUInt64(Console.ReadLine());
+            var numOfMessages = Convert.ToUInt64(Console.ReadLine());
 
-            long milliseconds = DateTimeOffset.Now.ToUnixTimeMilliseconds();
+            var milliseconds = DateTimeOffset.Now.ToUnixTimeMilliseconds();
             Run(numOfMessages, P, BER, k, out var noisyMessages, out var detectedNoisyMessages);
-            long benchmark = DateTimeOffset.Now.ToUnixTimeMilliseconds() - milliseconds;
+            var benchmark = DateTimeOffset.Now.ToUnixTimeMilliseconds() - milliseconds;
 
             Console.WriteLine("Transmitted " + numOfMessages + " messages.");
             Console.WriteLine(
                 noisyMessages + " messages had errors. (" + (noisyMessages * 100.0) / numOfMessages + "%)");
             Console.WriteLine("CRC successfully detected " + detectedNoisyMessages + " of these. (" +
                               (detectedNoisyMessages * 100.0) / numOfMessages + "% of messages) (" +
-                              (detectedNoisyMessages * 100.0) / noisyMessages + "% of errors)");
+                              Math.Round((detectedNoisyMessages * 100.0) / noisyMessages) + "% of errors)");
             Console.WriteLine("And failed to detect " + (noisyMessages - detectedNoisyMessages) + " (" + (
                 (noisyMessages - detectedNoisyMessages) * 100.0) / numOfMessages + "%)");
             Console.WriteLine("Validated in " + benchmark + "ms.");
         }
 
+        /// <summary>
+        /// Runs the exercise.
+        /// </summary>
+        /// <param name="numOfMessages">The number of messages to be generated.</param>
+        /// <param name="P">A binary unsigned integer array message used as a divisor.</param>
+        /// <param name="BER">The Bit Error Rate.</param>
+        /// <param name="k">The size of each message.</param>
+        /// <param name="noisyMessages">The number of messages that have been altered</param>
+        /// <param name="detectedNoisyMessages">The number of messages that have been altered and detected by CRC.</param>
         static void Run(ulong numOfMessages, uint[] P, double BER, uint k, out ulong noisyMessages,
             out ulong detectedNoisyMessages)
         {
@@ -60,6 +72,11 @@ namespace CRC
             }
         }
 
+        /// <summary>
+        /// Converts an unsigned integer to an array of its digits.
+        /// </summary>
+        /// <param name="digits">The unsigned integer input.</param>
+        /// <returns>The converted unsigned integer array.</returns>
         static uint[] DigitsToArray(uint digits)
         {
             var dList = new List<uint>();
@@ -70,6 +87,14 @@ namespace CRC
             return arr;
         }
 
+        /// <summary>
+        /// Generates a random binary message represented as an unsigned integer array whose values range is [0, 1]
+        /// and has a right padding.
+        /// </summary>
+        /// <param name="k">The size of the actual message.</param>
+        /// <param name="padding">The size of the padding on the right.</param>
+        /// <returns>An unsigned integer array whose first <c>k</c> values are random integers of [0, 1] and the last
+        /// <c>padding</c> values are 0</returns>
         static uint[] RandomPaddedMessage(uint k, int padding)
         {
             var message = new uint[k + padding];
@@ -82,6 +107,13 @@ namespace CRC
             return message;
         }
 
+        /// <summary>
+        /// Adds noise to a message block according to a predefined bit error rate and returns the result.
+        /// </summary>
+        /// <param name="message">A binary message represented as an unsigned integer array.</param>
+        /// <param name="BER">The Bit Error Rate.</param>
+        /// <param name="isNoisy">Whether noise has been added to the block.</param>
+        /// <returns>The noisy message if BER is hit, otherwise the original. </returns>
         static uint[] MessageWithNoise(uint[] message, double BER, out bool isNoisy)
         {
             var temp = new uint[message.Length];
@@ -103,6 +135,12 @@ namespace CRC
             return temp;
         }
 
+        /// <summary>
+        /// Calculates and returns the FCS of a block. 
+        /// </summary>
+        /// <param name="message">A binary message represented as an unsigned integer array.</param>
+        /// <param name="P">A binary unsigned integer array message used as a divisor.</param>
+        /// <returns>The FCS array</returns>
         static uint[] GetFcs(uint[] message, uint[] P)
         {
             var temp = new uint[message.Length];
